@@ -1,0 +1,109 @@
+services:
+  # db:
+  #   image: postgres:15
+  #   restart: unless-stopped
+  #   environment:
+  #     # --- PostgreSQL (crear DB y credenciales) ---
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${POSTGRES_DB}
+  #   volumes:
+  #     - pg_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
+    ports:
+      - "5678:5678"
+    # Para WEBHOOKS en local, arrancamos con túnel (cambia por reverse proxy en prod)
+    command: ["start", "--tunnel"]   # ← DEV: te da una URL pública temporal (NO usar en producción)
+    restart: unless-stopped
+    environment:
+      # --- Timezone / localización ---
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+      TZ: ${TZ}
+
+      # --- Deployment / acceso (para prod descomentar y completar) ---
+      # N8N_HOST: automations.midominio.com          # hostname público
+      # N8N_PORT: "5678"                              # puerto del backend
+      # N8N_PROTOCOL: https                          # http|https
+      # WEBHOOK_URL: "https://automations.midominio.com/"  # fuerza URLs de webhooks correctas atrás de proxy/SSL
+
+      # Editor/UI y miscelánea
+      # N8N_EDITOR_BASE_URL: "https://automations.midominio.com"  # URL pública del editor
+      # N8N_PATH: "/"                                   # path base
+      # N8N_LISTEN_ADDRESS: "::"                        # IP bind
+      # N8N_PUBLIC_API_DISABLED: "false"                # desactivar/activar API pública
+      # N8N_PUBLIC_API_ENDPOINT: "api"
+      # N8N_DIAGNOSTICS_ENABLED: "true"                 # telemetry (podés desactivarla)
+      # N8N_TEMPLATES_ENABLED: "false"                  # plantillas
+      # N8N_PROXY_HOPS: "1"                             # si hay reverse proxies delante
+      # N8N_TUNNEL_SUBDOMAIN: ""                        # opcional: subdominio específico del túnel
+
+      # --- Seguridad ---
+      # Autenticación básica adicional (útil en dev o si exponés sin SSO):
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      # Clave de cifrado de credenciales (poné una propia para portabilidad backups):
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+
+      # --- Base de datos (Postgres) ---
+      DB_TYPE: ${DB_TYPE}
+      DB_POSTGRESDB_HOST: ${DB_POSTGRESDB_HOST}
+      DB_POSTGRESDB_PORT: ${DB_POSTGRESDB_PORT}
+      DB_POSTGRESDB_DATABASE: ${DB_POSTGRESDB_DATABASE}
+      DB_POSTGRESDB_USER: ${DB_POSTGRESDB_USER}
+      DB_POSTGRESDB_PASSWORD: ${DB_POSTGRESDB_PASSWORD}
+      # DB_POSTGRESDB_SCHEMA: public
+      # (Tip: podés usar variables *_FILE para inyectar secretos desde archivos)  # ver docs
+
+      # --- Ejecuciones (historial, pruning, tiempos) ---
+      # regular|queue (queue requiere Redis, para empezar dejalo en regular)
+      EXECUTIONS_MODE: ${EXECUTIONS_MODE}
+      # Tiempo máx por workflow (s) y límite que usuarios pueden configurar:
+      EXECUTIONS_TIMEOUT: ${EXECUTIONS_TIMEOUT}
+      EXECUTIONS_TIMEOUT_MAX: ${EXECUTIONS_TIMEOUT_MAX}
+      # Guardado de datos de ejecución:
+      EXECUTIONS_DATA_SAVE_ON_ERROR: ${EXECUTIONS_DATA_SAVE_ON_ERROR}
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: ${EXECUTIONS_DATA_SAVE_ON_SUCCESS}
+      EXECUTIONS_DATA_SAVE_ON_PROGRESS: ${EXECUTIONS_DATA_SAVE_ON_PROGRESS}
+      EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: ${EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS}
+      # Pruning automático del historial (mantener base liviana):
+      EXECUTIONS_DATA_PRUNE: ${EXECUTIONS_DATA_PRUNE}
+      EXECUTIONS_DATA_MAX_AGE: ${EXECUTIONS_DATA_MAX_AGE}
+      EXECUTIONS_DATA_PRUNE_MAX_COUNT: ${EXECUTIONS_DATA_PRUNE_MAX_COUNT}
+      # Buffers/intervalos de borrado:
+      EXECUTIONS_DATA_HARD_DELETE_BUFFER: ${EXECUTIONS_DATA_HARD_DELETE_BUFFER}
+      EXECUTIONS_DATA_PRUNE_HARD_DELETE_INTERVAL: ${EXECUTIONS_DATA_PRUNE_HARD_DELETE_INTERVAL}
+      EXECUTIONS_DATA_PRUNE_SOFT_DELETE_INTERVAL: ${EXECUTIONS_DATA_PRUNE_SOFT_DELETE_INTERVAL}
+
+      # --- Logs / métricas (opcional) ---
+      # N8N_LOG_LEVEL: "info"                  # silly|debug|verbose|info|warn|error
+      # Habilitar métricas Prometheus (ver ejemplo en docs)
+      # N8N_METRICS: "true"
+
+      # --- Endpoints (si querés paths custom para webhooks) ---
+      # N8N_ENDPOINT_REST: "rest"                       # API interna
+      # N8N_ENDPOINT_WEBHOOK: "webhook"                 # prod webhooks
+      # N8N_ENDPOINT_WEBHOOK_TEST: "webhook-test"       # test webhooks
+
+      # --- Proxy de salida para nodos (si tu VPS lo requiere) ---
+      # HTTP_PROXY: "http://proxy.local:3128"
+      # HTTPS_PROXY: "http://proxy.local:3128"
+      # NO_PROXY: "localhost,127.0.0.1"
+
+    volumes:
+      - n8n_data:/home/node/.n8n   # claves, adjuntos, config propia de n8n
+      - ./local-files:/files       # carpeta útil para leer/escribir desde workflows
+
+volumes:
+  n8n_data:
+  pg_data:

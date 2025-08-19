@@ -1,0 +1,53 @@
+# =============================================================================
+# n8n - ARCHIVOS A IGNORAR EN GIT
+# =============================================================================
+
+# Variables de entorno (contienen credenciales)
+.env
+.env.local
+.env.production
+.env.staging
+
+# Datos de n8n (workflows, credenciales, etc.)
+local-files/
+n8n_data/
+pg_data/
+
+# Logs
+*.log
+logs/
+
+# Archivos temporales
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+.dockerignore
+
+# Backups
+backups/
+*.backup
+*.bak
+
+# Certificados SSL
+*.pem
+*.key
+*.crt
+*.csr
+
+# Archivos de configuración local
+config.local.*
+settings.local.*
+
+# =============================================================================
+# NOTA: NUNCA subas archivos .env al repositorio
+# =============================================================================
