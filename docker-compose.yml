@@ -54,6 +54,8 @@ services:
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
       # Clave de cifrado de credenciales (poné una propia para portabilidad backups):
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      # Licencia n8n (activar características premium gratuitas):
+      N8N_LICENSE_ACTIVATION_KEY: ${N8N_LICENSE_ACTIVATION_KEY}
 
       # --- Base de datos (Postgres) ---
       DB_TYPE: ${DB_TYPE}

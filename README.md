@@ -1,4 +1,4 @@
-# 🚀 n8n - Configuración Local y Deployment en Producción
+# 🚀 n8n - Configuración Local Completa
 
 Este proyecto proporciona una configuración completa de **n8n** con Docker Compose, incluyendo PostgreSQL, autenticación básica y soporte para webhooks tanto en desarrollo local como en producción.
 
@@ -28,14 +28,14 @@ nano .env
 ### 2. Variables Críticas a Configurar
 
 ```bash
-# Seguridad (generadas automáticamente)
-N8N_BASIC_AUTH_USER=luca
-N8N_BASIC_AUTH_PASSWORD=tVKHtXzpktEb8aPiJCeyWYfxlJpmKnM3
-N8N_ENCRYPTION_KEY=5a3f3234-334f-4ce9-830c-688e104a75821984dbde-bf86-4ff3-b6ac-3b57c32c4131fe50d292-b12a-47
+# Seguridad (generar claves únicas)
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=tu_password_seguro_aqui
+N8N_ENCRYPTION_KEY=tu_clave_encryption_80_caracteres_aqui
 
 # Base de datos PostgreSQL
-POSTGRES_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
-DB_POSTGRESDB_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
+POSTGRES_PASSWORD=tu_password_postgres_aqui
+DB_POSTGRESDB_PASSWORD=tu_password_postgres_aqui
 ```
 
 ### 3. Configurar PostgreSQL Local (Desarrollo)
@@ -69,23 +69,33 @@ DB_POSTGRESDB_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
    psql postgres
    
    # Crear usuario y base de datos
-   CREATE USER n8n WITH PASSWORD '5c0ZXQHkwsRL37mPZKcaneBL';
+   CREATE USER n8n WITH PASSWORD 'tu_password_postgres_aqui';
    CREATE DATABASE n8n OWNER n8n;
    GRANT ALL PRIVILEGES ON DATABASE n8n TO n8n;
    \q
    ```
 
-3. **Actualizar variables de entorno**:
+3. **Configurar PostgreSQL para puerto personalizado** (evitar conflictos):
    ```bash
-   # En .env, cambiar:
-   DB_POSTGRESDB_HOST=localhost
-   DB_POSTGRESDB_PORT=5432
-   DB_POSTGRESDB_DATABASE=n8n
-   DB_POSTGRESDB_USER=n8n
-   DB_POSTGRESDB_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
+   # Agregar configuración de puerto
+   echo "port = 5433" >> /opt/homebrew/var/postgresql@15/postgresql.conf
+   echo "listen_addresses = '*'" >> /opt/homebrew/var/postgresql@15/postgresql.conf
+   
+   # Reiniciar PostgreSQL
+   brew services restart postgresql@15
    ```
 
-4. **Modificar docker-compose.yml**:
+4. **Actualizar variables de entorno**:
+   ```bash
+   # En .env, cambiar:
+   DB_POSTGRESDB_HOST=host.docker.internal
+   DB_POSTGRESDB_PORT=5433
+   DB_POSTGRESDB_DATABASE=n8n
+   DB_POSTGRESDB_USER=n8n
+   DB_POSTGRESDB_PASSWORD=tu_password_postgres_aqui
+   ```
+
+5. **Modificar docker-compose.yml**:
    ```yaml
    # Comentar o eliminar el servicio db
    # db:
@@ -98,6 +108,15 @@ DB_POSTGRESDB_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
      #   condition: service_healthy
    ```
 
+6. **Verificar configuración**:
+   ```bash
+   # Probar conexión a PostgreSQL
+   psql -h localhost -p 5433 -U n8n -d n8n -c "SELECT version();"
+   
+   # Verificar que el puerto esté en uso
+   lsof -i :5433
+   ```
+
 #### Opción B: PostgreSQL en Contenedor (Producción)
 
 **Para producción, mantener el servicio `db` en docker-compose.yml**:
@@ -107,8 +126,13 @@ DB_POSTGRESDB_HOST=db
 DB_POSTGRESDB_PORT=5432
 DB_POSTGRESDB_DATABASE=n8n
 DB_POSTGRESDB_USER=n8n
-DB_POSTGRESDB_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
+DB_POSTGRESDB_PASSWORD=tu_password_postgres_aqui
 ```
+
+**⚠️ Nota importante sobre conectividad Docker-Host:**
+- **Para desarrollo local**: Usar `host.docker.internal` (macOS/Windows)
+- **Para Linux**: Usar `172.17.0.1` o configurar `--add-host`
+- **Para producción**: Usar el nombre del servicio `db`
 
 ### 4. Estructura de Carpetas Local
 
@@ -128,10 +152,59 @@ local-files/
 └── temp/           # Archivos temporales
 ```
 
+**⚠️ IMPORTANTE: n8n NO crea carpetas automáticamente**
+
 **Uso en workflows n8n:**
 - **Leer archivos**: `/files/input/csv/datos.csv`
 - **Escribir archivos**: `/files/output/reports/reporte.pdf`
 - **Archivos temporales**: `/files/temp/archivo_temporal.txt`
+
+**🛠️ Creación de Carpetas:**
+```bash
+# Opción 1: Crear manualmente ANTES de usar n8n (Recomendado)
+mkdir -p local-files/input/proyecto/configs
+mkdir -p local-files/output/proyecto/reportes
+
+# Opción 2: Crear desde n8n usando nodo "Execute Command"
+# Command: mkdir
+# Arguments: -p /files/output/proyecto/reportes
+```
+
+### 5. Organización de Datos
+
+#### 🗄️ ¿Qué se guarda dónde?
+
+**📊 PostgreSQL (Base de Datos Principal):**
+- ✅ **Workflows**: Todos tus flujos de automatización
+- ✅ **Credentials**: Credenciales de APIs, bases de datos, servicios
+- ✅ **Executions**: Historial de ejecuciones (logs, resultados, errores)
+- ✅ **Users**: Usuarios y permisos (si usas autenticación)
+- ✅ **Tags**: Etiquetas para organizar workflows
+- ✅ **Variables**: Variables globales del workspace
+- ✅ **Settings**: Configuraciones de n8n
+
+**📁 local-files (Archivos del Sistema):**
+- ✅ **Archivos de entrada**: CSV, PDF, imágenes, JSON
+- ✅ **Archivos generados**: Reportes, documentos procesados
+- ✅ **Logs de workflows**: Archivos de log específicos
+- ✅ **Datos temporales**: Archivos intermedios de procesamiento
+- ✅ **Adjuntos**: Archivos adjuntos de workflows
+
+#### 🏷️ Organización con Tags
+
+**Crear Tags para Organizar:**
+1. **En n8n UI**: Settings → Tags
+2. **Crear tags como**:
+   - `proyecto1`
+   - `proyecto2`
+   - `automatizacion`
+   - `desarrollo`
+   - `produccion`
+
+**Aplicar Tags a Workflows:**
+- Cada workflow puede tener múltiples tags
+- Filtrar workflows por tags
+- Organizar por proyecto o función
 
 ## 🏃‍♂️ Desarrollo Local
 
@@ -155,18 +228,93 @@ docker-compose logs -f n8n
 
 ```bash
 # Probar conexión a PostgreSQL local
-psql -h localhost -U n8n -d n8n -c "SELECT version();"
+psql -h localhost -p 5433 -U n8n -d n8n -c "SELECT version();"
 
 # Verificar que n8n puede conectarse
 docker-compose exec n8n n8n --version
+
+# Verificar variables de entorno en el container
+docker-compose exec n8n env | grep DB_POSTGRESDB_HOST
+```
+
+### 🗄️ Herramientas Visuales para PostgreSQL
+
+#### **🖥️ Mejores GUI Tools para macOS:**
+
+**1. TablePlus (Recomendado)**
+- ✅ **Interfaz moderna** y fácil de usar
+- ✅ **Conexión rápida** a PostgreSQL local
+- ✅ **Gratuito** para uso básico
+- ✅ **Soporte nativo** para macOS
+- 🔗 **Descarga**: https://tableplus.com/
+
+**2. Postico**
+- ✅ **Específico para PostgreSQL**
+- ✅ **Interfaz limpia** y minimalista
+- ✅ **Gratuito** para uso personal
+- ✅ **Desarrollado para macOS**
+- 🔗 **Descarga**: https://eggerapps.at/postico2/
+
+#### **🔧 Configuración Rápida con TablePlus:**
+
+```bash
+# 1. Descargar e instalar TablePlus
+# 2. Crear nueva conexión PostgreSQL:
+Host: localhost
+Port: 5433
+User: n8n
+Password: tu_password_postgres_aqui
+Database: n8n
 ```
 
 ### Acceso y Configuración
 
 1. **Abrir n8n**: `http://localhost:5678`
 2. **Credenciales**: 
-   - Usuario: `luca`
-   - Contraseña: `tVKHtXzpktEb8aPiJCeyWYfxlJpmKnM3`
+   - Usuario: `admin` (o el configurado en N8N_BASIC_AUTH_USER)
+   - Contraseña: La configurada en N8N_BASIC_AUTH_PASSWORD
+
+### 🎁 Activación de Licencia Premium (Gratuita)
+
+#### **Paso 1: Crear Cuenta de Propietario**
+1. **Primera vez** que accedes a n8n, verás un formulario para crear cuenta
+2. **Completar con tus datos**:
+   - Email: Tu email
+   - First Name: Tu nombre
+   - Last Name: Tu apellido
+   - Password: Crear contraseña segura (8+ caracteres, 1 número, 1 mayúscula)
+
+#### **Paso 2: Activar Licencia Premium**
+1. **Después de crear la cuenta**, n8n mostrará una oferta: "Get paid features for free (forever)"
+2. **Hacer clic** en "Send me a free license key"
+3. **Recibirás un email** con la clave de licencia
+4. **Activar la licencia** en n8n
+
+#### **Paso 3: Configurar Licencia Permanentemente**
+**Para que la licencia persista después de reiniciar el container:**
+
+1. **Agregar la clave al `.env`**:
+   ```bash
+   # En tu archivo .env, agregar:
+   N8N_LICENSE_ACTIVATION_KEY=tu-clave-de-licencia-aqui
+   ```
+
+2. **Verificar que esté activada en `docker-compose.yml`**:
+   ```yaml
+   # Esta línea debe estar descomentada:
+   N8N_LICENSE_ACTIVATION_KEY: ${N8N_LICENSE_ACTIVATION_KEY}
+   ```
+
+3. **Reiniciar n8n**:
+   ```bash
+   docker-compose down && docker-compose up -d
+   ```
+
+#### **🎯 Características Premium que Desbloqueas:**
+- **📁 Folders**: Organizar workflows en carpetas
+- **🕐 Workflow History**: Historial de 24 horas para restaurar versiones
+- **🐛 Advanced Debugging**: Depuración avanzada en el editor
+- **🔍 Execution Search**: Búsqueda y etiquetado de ejecuciones
 
 ### 🧪 Testing de Webhooks en Local
 
@@ -419,6 +567,11 @@ N8N_BASIC_AUTH_USER=admin
 N8N_BASIC_AUTH_PASSWORD=password-seguro
 ```
 
+#### Licencia
+```bash
+N8N_LICENSE_ACTIVATION_KEY=tu-clave-de-licencia-aqui
+```
+
 #### Ejecuciones
 ```bash
 EXECUTIONS_MODE=regular  # regular|queue
@@ -528,4 +681,133 @@ docker volume prune
 
 ---
 
-**¡Listo para automatizar! 🎉**
+## ✅ Checklist Final - Antes de Comenzar
+
+### 🔧 **Configuración del Sistema:**
+- [ ] **Docker instalado** y funcionando
+- [ ] **PostgreSQL local** instalado y corriendo en puerto 5433
+- [ ] **Base de datos n8n** creada con usuario y permisos
+- [ ] **Variables de entorno** configuradas en `.env` con `host.docker.internal`
+- [ ] **Docker Compose** actualizado para PostgreSQL local
+- [ ] **PostgreSQL configurado** para escuchar en todas las interfaces
+
+### 🗂️ **Estructura del Proyecto:**
+- [ ] **Carpetas local-files** creadas y organizadas
+- [ ] **Archivo .gitignore** configurado
+- [ ] **README.md** completo y actualizado
+- [ ] **Backup del .env** realizado
+
+### 🔐 **Seguridad:**
+- [ ] **Claves de seguridad** generadas y seguras
+- [ ] **Contraseñas** cambiadas de los valores por defecto
+- [ ] **Archivo .env** NO subido al repositorio
+- [ ] **Credenciales** guardadas en lugar seguro
+
+### 🛠️ **Herramientas Opcionales:**
+- [ ] **TablePlus/Postico** instalado para PostgreSQL
+- [ ] **Editor de código** configurado (VS Code recomendado)
+- [ ] **Git** configurado para versionado
+
+### 📋 **Planificación:**
+- [ ] **Proyectos definidos** (Secretario, Agente de Pauta, etc.)
+- [ ] **Tags planificados** para organización
+- [ ] **Estructura de carpetas** definida por proyecto
+- [ ] **Workflows iniciales** identificados
+
+### 🚀 **Próximos Pasos Inmediatos:**
+1. **Crear base de datos PostgreSQL** con puerto 5433
+2. **Configurar PostgreSQL** para escuchar en todas las interfaces
+3. **Levantar n8n**: `docker-compose up -d`
+4. **Acceder**: `http://localhost:5678`
+5. **Crear cuenta de propietario** con tus datos
+6. **Activar licencia premium** gratuita
+7. **Configurar licencia** como variable de entorno
+8. **Configurar tags** en n8n UI
+9. **Crear primer workflow** de prueba
+
+### ⚠️ **Consideraciones Importantes:**
+
+#### **🔍 Monitoreo:**
+- **Logs de n8n**: `docker-compose logs -f n8n`
+- **Estado de servicios**: `docker-compose ps`
+- **Uso de recursos**: `docker stats`
+
+#### **💾 Persistencia de Datos:**
+- **✅ Se mantienen**: Workflows, credentials, executions, users, settings
+- **✅ Se mantienen**: Base de datos PostgreSQL local
+- **❌ Se pierden**: Licencia (si no está configurada como variable de entorno)
+- **✅ Solución**: Configurar `N8N_LICENSE_ACTIVATION_KEY` en `.env`
+
+#### **💾 Backups:**
+- **Frecuencia**: Semanal mínimo
+- **Ubicación**: Múltiples lugares seguros
+- **Pruebas**: Verificar restauración periódicamente
+
+#### **🔄 Actualizaciones:**
+- **n8n**: Mensual o cuando salgan features importantes
+- **PostgreSQL**: Seguir actualizaciones de seguridad
+- **Docker**: Mantener actualizado
+
+#### **📈 Escalabilidad:**
+- **Recursos**: Monitorear CPU/RAM/Disco
+- **Workflows**: Organizar con tags desde el inicio
+- **Archivos**: Mantener estructura ordenada
+
+### 🎯 **Recursos Útiles:**
+
+#### **📚 Documentación:**
+- [n8n Docs](https://docs.n8n.io/)
+- [n8n Community](https://community.n8n.io/)
+- [PostgreSQL Docs](https://www.postgresql.org/docs/)
+
+#### **🛠️ Herramientas:**
+- [TablePlus](https://tableplus.com/) - PostgreSQL GUI
+- [Docker Hub](https://hub.docker.com/) - Imágenes oficiales
+- [Let's Encrypt](https://letsencrypt.org/) - SSL gratuito
+
+#### **📱 Comunidad:**
+- [n8n Discord](https://discord.gg/n8n)
+- [GitHub Issues](https://github.com/n8n-io/n8n/issues)
+- [Reddit r/n8n](https://www.reddit.com/r/n8n/)
+
+### 🚨 **Solución de Problemas Comunes:**
+
+#### **n8n no inicia:**
+```bash
+# Verificar logs
+docker-compose logs n8n
+
+# Verificar conexión a base de datos
+psql -h localhost -p 5433 -U n8n -d n8n -c "SELECT 1;"
+
+# Verificar variables de entorno en el container
+docker-compose exec n8n env | grep DB_POSTGRESDB_HOST
+
+# Reiniciar servicios
+docker-compose down && docker-compose up -d
+```
+
+#### **Webhooks no funcionan:**
+- Verificar `WEBHOOK_URL` en `.env`
+- Comprobar configuración de proxy
+- Revisar logs de n8n
+
+#### **Problemas de permisos:**
+```bash
+# Verificar permisos de carpetas
+ls -la local-files/
+chmod 755 local-files/
+```
+
+---
+
+## 🎉 **¡Todo Listo para Automatizar!**
+
+**Tu proyecto n8n está completamente configurado y listo para:**
+- ✅ **Desarrollo local** con PostgreSQL
+- ✅ **Testing de webhooks** con túnel
+- ✅ **Organización de múltiples proyectos**
+- ✅ **Deployment en producción**
+- ✅ **Backups y mantenimiento**
+
+**¡Comienza a crear tus workflows de automatización! 🚀**
