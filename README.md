@@ -1,46 +1,103 @@
-# 🚀 n8n - Configuración Local y Deployment en Producción
+# 🚀 n8n - Guía Completa de Instalación y Configuración Local
 
-Este proyecto proporciona una configuración completa de **n8n** con Docker Compose, incluyendo PostgreSQL, autenticación básica y soporte para webhooks tanto en desarrollo local como en producción.
+Guía paso a paso para configurar y ejecutar **n8n** localmente con Docker Compose, PostgreSQL y soporte completo para webhooks.
+
+## 📋 Tabla de Contenidos
+
+- [📁 Estructura del Proyecto](#-estructura-del-proyecto)
+- [⚡ Instalación Rápida](#-instalación-rápida)
+- [🛠️ Configuración Detallada](#️-configuración-detallada)
+- [🗄️ Configuración de PostgreSQL](#️-configuración-de-postgresql)
+- [📂 Estructura de Archivos](#-estructura-de-archivos)
+- [🚀 Primeros Pasos](#-primeros-pasos)
+- [🔧 Configuración Avanzada](#-configuración-avanzada)
+- [🔄 Operaciones de Mantenimiento](#-operaciones-de-mantenimiento)
+- [🐛 Troubleshooting](#-troubleshooting)
+- [📚 Recursos Adicionales](#-recursos-adicionales)
 
 ## 📁 Estructura del Proyecto
 
 ```
 n8n-local/
-├── .env                    # Variables de entorno (NO subir al repositorio)
+├── .env                    # Variables de entorno (NO subir al repo)
 ├── .env.example           # Plantilla de variables de entorno
 ├── docker-compose.yml     # Stack n8n + PostgreSQL
-├── local-files/           # Archivos locales para workflows
+├── local-files/           # Archivos para workflows
+│   ├── input/             # Archivos de entrada
+│   ├── output/            # Archivos generados
+│   └── temp/              # Archivos temporales
 └── README.md             # Esta documentación
 ```
 
-## 🛠️ Configuración Inicial
+## ⚡ Instalación Rápida
 
-### 1. Preparar Variables de Entorno
+### Prerrequisitos
+
+- **Docker** y **Docker Compose** instalados
+- **PostgreSQL** local (recomendado) o usar contenedor
+- **Git** para clonar el repositorio
+
+### Pasos Iniciales
 
 ```bash
-# Copiar la plantilla y configurar
-cp .env.example .env
+# 1. Clonar el repositorio
+git clone <tu-repositorio>
+cd n8n-local
 
-# Editar con tus valores
-nano .env
+# 2. Configurar variables de entorno
+cp .env.example .env
+nano .env  # Editar con tus valores
+
+# 3. Configurar PostgreSQL local (recomendado)
+# Ver sección "Configuración de PostgreSQL"
+
+# 4. Levantar n8n
+docker-compose up -d
+
+# 5. Acceder a n8n
+open http://localhost:5678
 ```
 
-### 2. Variables Críticas a Configurar
+## 🛠️ Configuración Detallada
+
+### 1. Variables de Entorno Críticas
+
+**Crear archivo `.env` basado en `.env.example`:**
 
 ```bash
-# Seguridad (generadas automáticamente)
+# Seguridad (generar valores únicos)
 N8N_BASIC_AUTH_USER=luca
 N8N_BASIC_AUTH_PASSWORD=tVKHtXzpktEb8aPiJCeyWYfxlJpmKnM3
 N8N_ENCRYPTION_KEY=5a3f3234-334f-4ce9-830c-688e104a75821984dbde-bf86-4ff3-b6ac-3b57c32c4131fe50d292-b12a-47
 
 # Base de datos PostgreSQL
-POSTGRES_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
+DB_POSTGRESDB_HOST=host.docker.internal
+DB_POSTGRESDB_PORT=5433
+DB_POSTGRESDB_DATABASE=n8n
+DB_POSTGRESDB_USER=n8n
 DB_POSTGRESDB_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
+
+# Timezone
+TZ=America/Argentina/Buenos_Aires
+GENERIC_TIMEZONE=America/Argentina/Buenos_Aires
+
+# Licencia (agregar después de activar)
+N8N_LICENSE_ACTIVATION_KEY=5cef0c97-1bf8-4af7-9098-a20191749841
 ```
 
-### 3. Configurar PostgreSQL Local (Desarrollo)
+### 2. Generar Claves de Seguridad
 
-#### Opción A: PostgreSQL Local (Recomendado para Desarrollo)
+```bash
+# Generar contraseña segura para autenticación
+openssl rand -base64 32
+
+# Generar clave de encriptación (80 caracteres)
+openssl rand -hex 40
+```
+
+## 🗄️ Configuración de PostgreSQL
+
+### Opción A: PostgreSQL Local (Recomendado)
 
 **Ventajas:**
 - ✅ Más rápido que contenedor
@@ -48,71 +105,65 @@ DB_POSTGRESDB_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
 - ✅ Menos uso de recursos
 - ✅ Persistencia nativa
 
-**Paso a paso:**
+#### Instalación en macOS
 
-1. **Instalar PostgreSQL** (si no lo tienes):
-   ```bash
-   # macOS con Homebrew
-   brew install postgresql@15
-   brew services start postgresql@15
-   
-   # Ubuntu/Debian
-   sudo apt update
-   sudo apt install postgresql postgresql-contrib
-   sudo systemctl start postgresql
-   sudo systemctl enable postgresql
-   ```
+```bash
+# Instalar PostgreSQL
+brew install postgresql@15
+brew services start postgresql@15
 
-2. **Crear base de datos y usuario**:
-   ```bash
-   # Conectar como superusuario
-   psql postgres
-   
-   # Crear usuario y base de datos
-   CREATE USER n8n WITH PASSWORD '5c0ZXQHkwsRL37mPZKcaneBL';
-   CREATE DATABASE n8n OWNER n8n;
-   GRANT ALL PRIVILEGES ON DATABASE n8n TO n8n;
-   \q
-   ```
+# Configurar puerto personalizado (evitar conflictos)
+echo "port = 5433" >> /opt/homebrew/var/postgresql@15/postgresql.conf
+echo "listen_addresses = '*'" >> /opt/homebrew/var/postgresql@15/postgresql.conf
 
-3. **Actualizar variables de entorno**:
-   ```bash
-   # En .env, cambiar:
-   DB_POSTGRESDB_HOST=localhost
-   DB_POSTGRESDB_PORT=5432
-   DB_POSTGRESDB_DATABASE=n8n
-   DB_POSTGRESDB_USER=n8n
-   DB_POSTGRESDB_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
-   ```
-
-4. **Modificar docker-compose.yml**:
-   ```yaml
-   # Comentar o eliminar el servicio db
-   # db:
-   #   image: postgres:15
-   #   ...
-   
-   # En el servicio n8n, cambiar depends_on:
-   depends_on:
-     # db:
-     #   condition: service_healthy
-   ```
-
-#### Opción B: PostgreSQL en Contenedor (Producción)
-
-**Para producción, mantener el servicio `db` en docker-compose.yml**:
-```yaml
-# Mantener estas variables en .env para producción:
-DB_POSTGRESDB_HOST=db
-DB_POSTGRESDB_PORT=5432
-DB_POSTGRESDB_DATABASE=n8n
-DB_POSTGRESDB_USER=n8n
-DB_POSTGRESDB_PASSWORD=5c0ZXQHkwsRL37mPZKcaneBL
+# Reiniciar PostgreSQL
+brew services restart postgresql@15
 ```
 
-### 4. Estructura de Carpetas Local
+#### Instalación en Ubuntu/Debian
 
-El proyecto incluye una estructura organizada para archivos:
+```bash
+# Instalar PostgreSQL
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Configurar puerto personalizado
+sudo sed -i 's/#port = 5432/port = 5433/' /etc/postgresql/*/main/postgresql.conf
+sudo systemctl restart postgresql
+```
+
+#### Crear Base de Datos y Usuario
+
+```bash
+# Conectar como superusuario
+psql postgres
+
+# Crear usuario y base de datos
+CREATE USER n8n WITH PASSWORD '5c0ZXQHkwsRL37mPZKcaneBL';
+CREATE DATABASE n8n OWNER n8n;
+GRANT ALL PRIVILEGES ON DATABASE n8n TO n8n;
+\q
+
+# Verificar conexión
+psql -h localhost -p 5433 -U n8n -d n8n -c "SELECT version();"
+```
+
+### Opción B: PostgreSQL en Contenedor
+
+**Para usar PostgreSQL en contenedor (producción):**
+
+1. **Descomentar servicio `db` en `docker-compose.yml`**
+2. **Actualizar variables en `.env`:**
+   ```bash
+   DB_POSTGRESDB_HOST=db
+   DB_POSTGRESDB_PORT=5432
+   ```
+
+## 📂 Estructura de Archivos
+
+### Organización de `local-files`
 
 ```bash
 local-files/
@@ -128,21 +179,32 @@ local-files/
 └── temp/           # Archivos temporales
 ```
 
-**Uso en workflows n8n:**
+### Crear Estructura Base
+
+```bash
+# Crear estructura de carpetas
+mkdir -p local-files/{input,output,temp}/{csv,pdf,images,json,reports,processed,logs}
+
+# Verificar permisos
+chmod 755 local-files/
+```
+
+### Uso en Workflows n8n
+
+**Rutas en workflows:**
 - **Leer archivos**: `/files/input/csv/datos.csv`
 - **Escribir archivos**: `/files/output/reports/reporte.pdf`
 - **Archivos temporales**: `/files/temp/archivo_temporal.txt`
 
-## 🏃‍♂️ Desarrollo Local
+**⚠️ IMPORTANTE:** n8n NO crea carpetas automáticamente. Debes crearlas antes de usar.
 
-### Iniciar el Entorno
+## 🚀 Primeros Pasos
+
+### 1. Levantar n8n
 
 ```bash
-# Verificar que PostgreSQL esté corriendo (si usas PostgreSQL local)
+# Verificar que PostgreSQL esté corriendo
 brew services list | grep postgresql
-
-# Si no está corriendo:
-brew services start postgresql@15
 
 # Levantar servicios
 docker-compose up -d
@@ -151,200 +213,137 @@ docker-compose up -d
 docker-compose logs -f n8n
 ```
 
-### Verificar Conexión a Base de Datos
-
-```bash
-# Probar conexión a PostgreSQL local
-psql -h localhost -U n8n -d n8n -c "SELECT version();"
-
-# Verificar que n8n puede conectarse
-docker-compose exec n8n n8n --version
-```
-
-### Acceso y Configuración
+### 2. Acceder y Configurar
 
 1. **Abrir n8n**: `http://localhost:5678`
 2. **Credenciales**: 
    - Usuario: `luca`
    - Contraseña: `tVKHtXzpktEb8aPiJCeyWYfxlJpmKnM3`
 
-### 🧪 Testing de Webhooks en Local
+### 3. Crear Cuenta de Propietario
 
-#### Configuración del Túnel
+**Primera vez que accedes:**
+1. Completar formulario de registro:
+   - Email: `lucamazza02@gmail.com`
+   - First Name: `Luca`
+   - Last Name: `Mazzarello`
+   - Password: Crear contraseña segura
 
-El proyecto incluye **túnel automático** para desarrollo local:
+### 4. Activar Licencia Premium
 
-```yaml
-# En docker-compose.yml (solo para desarrollo)
-command: ["start", "--tunnel"]
-```
-
-#### Crear y Probar Webhooks
-
-1. **Crear Workflow con Webhook**:
-   - Agregar nodo "Webhook" como trigger
-   - Configurar método HTTP (GET, POST, etc.)
-   - Guardar y activar el workflow
-
-2. **URL del Túnel**:
-   - n8n mostrará una URL como: `https://abc123.n8n.cloudhook.dev/webhook/xyz`
-   - Esta URL es accesible desde internet para testing
-
-3. **Probar Webhook**:
+1. **Hacer clic** en "Get paid features for free (forever)"
+2. **Recibir email** con clave de licencia
+3. **Activar licencia** en n8n
+4. **Agregar al `.env`** para persistencia:
    ```bash
-   # Ejemplo con curl
-   curl -X POST https://abc123.n8n.cloudhook.dev/webhook/xyz \
-     -H "Content-Type: application/json" \
-     -d '{"test": "data"}'
+   N8N_LICENSE_ACTIVATION_KEY=tu-clave-de-licencia
    ```
 
-#### ⚠️ Importante: Túnel Solo para Desarrollo
+### 5. Configurar Organización
 
-- **NO usar en producción** - El túnel es solo para testing
-- **URLs temporales** - Cambian en cada reinicio
-- **Sin SSL propio** - Usa certificados de n8n
-- **Límites de uso** - Para desarrollo, no carga alta
+**Crear Tags para Organizar:**
+1. **Settings** → **Tags**
+2. **Crear tags principales:**
+   - `secretario`
+   - `agente_pauta`
+   - `marketing_digital`
+   - `automatizacion`
+   - `desarrollo`
+   - `produccion`
 
-## 🚀 Deployment en Producción
+### 6. Testing de Webhooks
 
-### 1. Preparar el Servidor
-
-#### Requisitos Mínimos
-- **CPU**: 2 cores
-- **RAM**: 4GB mínimo, 8GB recomendado
-- **Almacenamiento**: 20GB mínimo
-- **Sistema**: Linux (Ubuntu 20.04+, Debian 11+)
-
-#### Instalar Dependencias
+**El proyecto incluye túnel automático para desarrollo:**
 
 ```bash
-# Actualizar sistema
-sudo apt update && sudo apt upgrade -y
+# URLs de webhook generadas automáticamente
+# Ejemplo: https://abc123.n8n.cloudhook.dev/webhook/xyz
 
-# Instalar Docker y Docker Compose
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker $USER
-
-# Instalar Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+# Probar webhook con curl
+curl -X POST https://abc123.n8n.cloudhook.dev/webhook/xyz \
+  -H "Content-Type: application/json" \
+  -d '{"test": "data"}'
 ```
 
-### 2. Configurar Dominio y SSL
+**⚠️ IMPORTANTE:** El túnel es solo para desarrollo. NO usar en producción.
 
-#### DNS
+## 🔧 Configuración Avanzada
+
+### Variables de Entorno Importantes
+
+#### Seguridad
 ```bash
-# Agregar registro A en tu proveedor DNS
-automations.tudominio.com  A  TU_IP_SERVIDOR
+N8N_ENCRYPTION_KEY=clave-super-secreta-80-caracteres
+N8N_BASIC_AUTH_ACTIVE=true
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=password-seguro
 ```
 
-#### SSL con Let's Encrypt (Nginx)
+#### Ejecuciones
 ```bash
-# Instalar Nginx y Certbot
-sudo apt install nginx certbot python3-certbot-nginx
-
-# Configurar Nginx
-sudo nano /etc/nginx/sites-available/n8n
+EXECUTIONS_MODE=regular  # regular|queue
+EXECUTIONS_TIMEOUT=-1    # -1 = sin timeout
+EXECUTIONS_TIMEOUT_MAX=3600  # 1h máximo
+EXECUTIONS_DATA_PRUNE=true   # Limpiar historial automáticamente
+EXECUTIONS_DATA_MAX_AGE=336  # 14 días
 ```
 
-**Configuración Nginx**:
-```nginx
-server {
-    listen 80;
-    server_name automations.tudominio.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name automations.tudominio.com;
-
-    ssl_certificate /etc/letsencrypt/live/automations.tudominio.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/automations.tudominio.com/privkey.pem;
-
-    location / {
-        proxy_pass http://localhost:5678;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # WebSocket support
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
-
+#### Webhooks y Túnel
 ```bash
-# Habilitar sitio y obtener SSL
-sudo ln -s /etc/nginx/sites-available/n8n /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-sudo certbot --nginx -d automations.tudominio.com
+# Desarrollo local (túnel automático)
+command: ["start", "--tunnel"]
+
+# URLs de webhook generadas automáticamente
+# Ejemplo: https://abc123.n8n.cloudhook.dev/webhook/xyz
 ```
 
-### 3. Configurar Variables de Producción
+### Herramientas Visuales para PostgreSQL
 
-#### Actualizar `.env` para Producción
-
+#### TablePlus (Recomendado para macOS)
 ```bash
-# Quitar túnel (IMPORTANTE)
-# command: ["start", "--tunnel"]  # ← ELIMINAR ESTA LÍNEA
-
-# Configurar deployment
-N8N_HOST=automations.tudominio.com
-N8N_PROTOCOL=https
-N8N_PORT=5678
-WEBHOOK_URL=https://automations.tudominio.com/
-
-# Editor y UI
-N8N_EDITOR_BASE_URL=https://automations.tudominio.com
-N8N_PATH=/
-N8N_LISTEN_ADDRESS=::
-
-# Seguridad adicional
-N8N_PUBLIC_API_DISABLED=false
-N8N_DIAGNOSTICS_ENABLED=false  # Desactivar telemetría
-N8N_TEMPLATES_ENABLED=false
-
-# Proxy (si usas Nginx)
-N8N_PROXY_HOPS=1
+# Configuración de conexión:
+Host: localhost
+Port: 5433
+User: n8n
+Password: 5c0ZXQHkwsRL37mPZKcaneBL
+Database: n8n
 ```
 
-### 4. Desplegar en Producción
-
-```bash
-# Clonar proyecto en servidor
-git clone https://github.com/tuusuario/n8n-local.git
-cd n8n-local
-
-# Configurar variables
-cp .env.example .env
-nano .env  # Editar con valores de producción
-
-# Levantar servicios
-docker-compose up -d
-
-# Verificar estado
-docker-compose ps
-docker-compose logs n8n
+#### Estructura de Base de Datos n8n
+```sql
+-- Tablas principales
+├── workflows          -- Todos los workflows
+├── credentials        -- Credenciales de APIs y servicios
+├── executions         -- Historial de ejecuciones
+├── users              -- Usuarios del sistema
+├── tags               -- Etiquetas para organizar
+├── variables          -- Variables globales
+└── settings           -- Configuraciones de n8n
 ```
-
-### 5. Configurar Webhooks en Producción
-
-#### URLs de Webhook
-- **Testing**: `https://automations.tudominio.com/webhook-test/xyz`
-- **Producción**: `https://automations.tudominio.com/webhook/xyz`
-
-#### Migrar de Testing a Producción
-1. Desactivar workflow en modo testing
-2. Cambiar a URL de producción
-3. Activar workflow en modo producción
 
 ## 🔄 Operaciones de Mantenimiento
+
+### Comandos Útiles
+
+```bash
+# Reiniciar solo n8n
+docker-compose restart n8n
+
+# Ver variables de entorno
+docker-compose exec n8n env | grep N8N
+
+# Acceder a PostgreSQL
+docker-compose exec db psql -U n8n -d n8n
+
+# Limpiar volúmenes no usados
+docker volume prune
+
+# Ver logs en tiempo real
+docker-compose logs -f n8n
+
+# Verificar estado de servicios
+docker-compose ps
+```
 
 ### Actualizar n8n
 
@@ -393,99 +392,122 @@ cp ~/n8n-backups/20241201/docker-compose.yml .
 docker-compose up -d
 ```
 
-### Migración Entre Servidores
+## 🐛 Troubleshooting
 
+### Problemas Comunes
+
+#### 1. n8n no inicia
 ```bash
-# En servidor origen
-docker-compose down
-# Hacer backup completo (ver sección anterior)
+# Verificar logs
+docker-compose logs n8n
 
-# En servidor destino
-git clone https://github.com/tuusuario/n8n-local.git
-cd n8n-local
-# Restaurar backup (ver sección anterior)
-docker-compose up -d
+# Verificar conexión a base de datos
+psql -h localhost -p 5433 -U n8n -d n8n -c "SELECT 1;"
+
+# Verificar variables de entorno
+docker-compose exec n8n env | grep DB_POSTGRESDB_HOST
+
+# Reiniciar servicios
+docker-compose down && docker-compose up -d
 ```
 
-## 🔧 Configuración Avanzada
-
-### Variables de Entorno Importantes
-
-#### Seguridad
+#### 2. Error de conexión a PostgreSQL
 ```bash
-N8N_ENCRYPTION_KEY=clave-super-secreta-80-caracteres
-N8N_BASIC_AUTH_ACTIVE=true
-N8N_BASIC_AUTH_USER=admin
-N8N_BASIC_AUTH_PASSWORD=password-seguro
+# Verificar que PostgreSQL esté corriendo
+brew services list | grep postgresql
+
+# Verificar puerto
+lsof -i :5433
+
+# Reiniciar PostgreSQL
+brew services restart postgresql@15
 ```
 
-#### Ejecuciones
+#### 3. Webhooks no funcionan
+- Verificar `WEBHOOK_URL` en `.env`
+- Comprobar configuración de proxy
+- Revisar logs: `docker-compose logs n8n`
+
+#### 4. Problemas de permisos
 ```bash
-EXECUTIONS_MODE=regular  # regular|queue
-EXECUTIONS_TIMEOUT=-1    # -1 = sin timeout
-EXECUTIONS_TIMEOUT_MAX=3600  # 1h máximo
-EXECUTIONS_DATA_PRUNE=true   # Limpiar historial automáticamente
-EXECUTIONS_DATA_MAX_AGE=336  # 14 días
+# Verificar permisos de carpetas
+ls -la local-files/
+chmod 755 local-files/
 ```
 
-#### Base de Datos
+#### 5. Error `ECONNREFUSED ::1:5433`
+**Solución:** Usar `host.docker.internal` en lugar de `localhost` en `.env`
+
+#### 6. Error de licencia perdida
 ```bash
-DB_TYPE=postgresdb
-DB_POSTGRESDB_HOST=db
-DB_POSTGRESDB_PORT=5432
-DB_POSTGRESDB_DATABASE=n8n
-DB_POSTGRESDB_USER=n8n
-DB_POSTGRESDB_PASSWORD=password-seguro
+# Verificar que la licencia esté en .env
+grep N8N_LICENSE_ACTIVATION_KEY .env
+
+# Si no está, agregar la clave de licencia
+echo "N8N_LICENSE_ACTIVATION_KEY=tu-clave-aqui" >> .env
+
+# Reiniciar n8n
+docker-compose restart n8n
 ```
 
-### Monitoreo y Logs
-
+#### 7. Problemas de memoria/recursos
 ```bash
-# Ver logs en tiempo real
-docker-compose logs -f n8n
-
-# Ver logs de base de datos
-docker-compose logs -f db
-
-# Estadísticas de uso
+# Verificar uso de recursos
 docker stats
 
-# Espacio en disco
-docker system df
+# Limpiar recursos no usados
+docker system prune -f
+docker volume prune -f
+
+# Verificar espacio en disco
+df -h
 ```
 
-### Troubleshooting
+### Verificación de Configuración
 
-#### Problemas Comunes
+```bash
+# Verificar que todos los servicios estén corriendo
+docker-compose ps
 
-1. **Webhooks no funcionan**:
-   - Verificar `WEBHOOK_URL` en `.env`
-   - Comprobar configuración de proxy
-   - Revisar logs: `docker-compose logs n8n`
+# Verificar conectividad de red
+docker-compose exec n8n ping host.docker.internal
 
-2. **Error de conexión a base de datos**:
-   - Verificar variables `DB_POSTGRESDB_*`
-   - Comprobar que PostgreSQL esté corriendo: `docker-compose ps`
+# Verificar variables de entorno críticas
+docker-compose exec n8n env | grep -E "(DB_POSTGRESDB|N8N_BASIC_AUTH|N8N_ENCRYPTION)"
 
-3. **Problemas de SSL**:
-   - Verificar certificados de Let's Encrypt
-   - Comprobar configuración de Nginx
-   - Revisar logs: `sudo journalctl -u nginx`
+# Verificar acceso a archivos locales
+docker-compose exec n8n ls -la /files/
 
-## 📚 Recursos Adicionales
+# Verificar versión de n8n
+docker-compose exec n8n n8n --version
 
-### Documentación Oficial
-- [Variables de Entorno](https://docs.n8n.io/hosting/configuration/environment-variables/)
-- [Docker Compose](https://docs.n8n.io/hosting/installation/server-setups/docker-compose/)
-- [Webhooks](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/)
-- [Configuración de Proxy](https://docs.n8n.io/hosting/configuration/configuration-examples/webhook-url/)
+# Verificar logs de PostgreSQL
+docker-compose logs db 2>/dev/null || echo "PostgreSQL local - verificar con: brew services list"
+```
 
-### Comunidad
-- [n8n Community](https://community.n8n.io/)
-- [GitHub Issues](https://github.com/n8n-io/n8n/issues)
-- [Discord](https://discord.gg/n8n)
+### Comandos de Diagnóstico Rápido
 
-## 🔒 Seguridad
+```bash
+# Script de verificación completa
+echo "=== Verificación n8n ==="
+docker-compose ps
+echo "=== Variables críticas ==="
+docker-compose exec n8n env | grep -E "(DB_POSTGRESDB|N8N_BASIC_AUTH|N8N_ENCRYPTION)" | head -5
+echo "=== Conexión PostgreSQL ==="
+psql -h localhost -p 5433 -U n8n -d n8n -c "SELECT version();" 2>/dev/null || echo "Error de conexión"
+echo "=== Puerto 5433 ==="
+lsof -i :5433
+echo "=== Recursos Docker ==="
+docker stats --no-stream
+```
+
+## 🔒 Seguridad y Mejores Prácticas
+
+### Variables Sensibles
+- `N8N_ENCRYPTION_KEY`: **CRÍTICA** - No cambiar sin backup
+- `N8N_BASIC_AUTH_PASSWORD`: Cambiar en cada deployment
+- `POSTGRES_PASSWORD`: Usar contraseña fuerte
+- `DB_POSTGRESDB_PASSWORD`: Misma que POSTGRES_PASSWORD
 
 ### Mejores Prácticas
 - ✅ Usar contraseñas fuertes y únicas
@@ -496,36 +518,148 @@ docker system df
 - ✅ Configurar firewall
 - ✅ Monitorear logs
 
-### Variables Sensibles
-- `N8N_ENCRYPTION_KEY`: **CRÍTICA** - No cambiar sin backup
-- `N8N_BASIC_AUTH_PASSWORD`: Cambiar en cada deployment
-- `POSTGRES_PASSWORD`: Usar contraseña fuerte
-- `DB_POSTGRESDB_PASSWORD`: Misma que POSTGRES_PASSWORD
-
----
-
-## 📝 Notas de Desarrollo
-
-### Estructura de URLs
-- **Local con túnel**: `https://abc123.n8n.cloudhook.dev/webhook/xyz`
-- **Producción**: `https://automations.tudominio.com/webhook/xyz`
-- **Testing**: `https://automations.tudominio.com/webhook-test/xyz`
-
-### Comandos Útiles
+### Generar Claves Seguras
 ```bash
-# Reiniciar solo n8n
-docker-compose restart n8n
+# Generar contraseña segura
+openssl rand -base64 32
 
-# Ver variables de entorno
-docker-compose exec n8n env | grep N8N
+# Generar clave de encriptación (80 caracteres)
+openssl rand -hex 40
 
-# Acceder a PostgreSQL
-docker-compose exec db psql -U n8n -d n8n
-
-# Limpiar volúmenes no usados
-docker volume prune
+# Generar UUID para licencia
+uuidgen
 ```
 
+## 📚 Recursos Adicionales
+
+### Documentación Oficial
+- [Variables de Entorno](https://docs.n8n.io/hosting/configuration/environment-variables/)
+- [Docker Compose](https://docs.n8n.io/hosting/installation/server-setups/docker-compose/)
+- [Webhooks](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/)
+- [Configuración de Proxy](https://docs.n8n.io/hosting/configuration/configuration-examples/webhook-url/)
+
+### Herramientas Recomendadas
+- [TablePlus](https://tableplus.com/) - PostgreSQL GUI
+- [DBeaver](https://dbeaver.io/) - Multiplataforma
+- [pgAdmin](https://www.pgadmin.org/) - Herramienta oficial
+
+### Comunidad
+- [n8n Community](https://community.n8n.io/)
+- [GitHub Issues](https://github.com/n8n-io/n8n/issues)
+- [Discord](https://discord.gg/n8n)
+
+## 🚀 Deployment en Producción
+
+### Preparar para Producción
+
+**Cambios necesarios en `.env`:**
+```bash
+# Quitar túnel (IMPORTANTE)
+# command: ["start", "--tunnel"]  # ← ELIMINAR ESTA LÍNEA
+
+# Configurar deployment
+N8N_HOST=automations.tudominio.com
+N8N_PROTOCOL=https
+N8N_PORT=5678
+WEBHOOK_URL=https://automations.tudominio.com/
+
+# Editor y UI
+N8N_EDITOR_BASE_URL=https://automations.tudominio.com
+N8N_PATH=/
+N8N_LISTEN_ADDRESS=::
+
+# Seguridad adicional
+N8N_PUBLIC_API_DISABLED=false
+N8N_DIAGNOSTICS_ENABLED=false  # Desactivar telemetría
+N8N_TEMPLATES_ENABLED=false
+
+# Proxy (si usas Nginx)
+N8N_PROXY_HOPS=1
+```
+
+### Configurar SSL con Let's Encrypt
+
+```bash
+# Instalar Nginx y Certbot
+sudo apt install nginx certbot python3-certbot-nginx
+
+# Configurar Nginx
+sudo nano /etc/nginx/sites-available/n8n
+```
+
+**Configuración Nginx:**
+```nginx
+server {
+    listen 80;
+    server_name automations.tudominio.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name automations.tudominio.com;
+
+    ssl_certificate /etc/letsencrypt/live/automations.tudominio.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/automations.tudominio.com/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:5678;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+```bash
+# Habilitar sitio y obtener SSL
+sudo ln -s /etc/nginx/sites-available/n8n /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+sudo certbot --nginx -d automations.tudominio.com
+```
+
+## ✅ Checklist Final
+
+### 🔧 Configuración del Sistema
+- [ ] Docker y Docker Compose instalados
+- [ ] PostgreSQL local configurado en puerto 5433
+- [ ] Base de datos n8n creada con usuario y permisos
+- [ ] Variables de entorno configuradas en `.env`
+- [ ] Docker Compose actualizado para PostgreSQL local
+
+### 🗂️ Estructura del Proyecto
+- [ ] Carpetas local-files creadas y organizadas
+- [ ] Archivo .gitignore configurado
+- [ ] Backup del .env realizado
+
+### 🔐 Seguridad
+- [ ] Claves de seguridad generadas y seguras
+- [ ] Contraseñas cambiadas de valores por defecto
+- [ ] Archivo .env NO subido al repositorio
+
+### 🚀 Próximos Pasos
+1. **Levantar n8n**: `docker-compose up -d`
+2. **Acceder**: `http://localhost:5678`
+3. **Crear cuenta de propietario**
+4. **Activar licencia premium**
+5. **Configurar tags** en n8n UI
+6. **Crear primer workflow** de prueba
+
 ---
 
-**¡Listo para automatizar! 🎉**
+## 🎉 ¡Listo para Automatizar!
+
+Tu entorno n8n está completamente configurado y listo para:
+- ✅ **Desarrollo local** con PostgreSQL
+- ✅ **Testing de webhooks** con túnel
+- ✅ **Organización de múltiples proyectos**
+- ✅ **Backups y mantenimiento**
+
+**¡Comienza a crear tus workflows de automatización! 🚀**
